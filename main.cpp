@@ -10,6 +10,8 @@ using std::cin;
 using std::cout;
 using std::string;
 
+const char* yellow = "\033[33m";
+
 int main() {
     orderbook ob;
     ob.addLimitOrder(105.25, 10, Side::Buy);
@@ -64,7 +66,7 @@ int main() {
             break;
         }
 
-        if (choice == 1 ) {
+        if (choice == 1 ) { // limit
             int choice;
             cout << "1. Buy\n2. Sell \nChoice: "; 
             cin >> choice;
@@ -78,16 +80,17 @@ int main() {
 
             Side side = ((choice == 1) ? Side::Buy : Side::Sell);
             auto start = std::chrono::high_resolution_clock::now();
-            bool traded = ob.addLimitOrder(price, quantity, side);
+            ExecutionResults result = ob.addLimitOrder(price, quantity, side);
             auto end = std::chrono::high_resolution_clock::now();
-            if (traded) {
-                auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-                lastTradeMessage = "Last trade latency: " + std::to_string(elapsed) + " microseconds.";
+            if (result.traded) {
+                auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+                lastTradeMessage = std::string(yellow) + "Last trade latency: " + std::to_string(elapsed) + " nanoseconds.\n" + "Filled " + 
+                std::to_string(result.filled) + " out of " + std::to_string(result.requested) + " requested." + reset;
             } else {
-                lastTradeMessage = "Last order did not execute immediately.";
+                lastTradeMessage = "No trades were made. Request added to book";
             }
             
-        } else if (choice == 2) {
+        } else if (choice == 2) { // market
             int choice;
             cout << "1. Buy\n2. Sell \nChoice: ";
             cin >> choice;
@@ -98,11 +101,12 @@ int main() {
 
             Side side = ((choice == 1) ? Side::Buy : Side::Sell);
             auto start = std::chrono::high_resolution_clock::now();
-            bool traded = ob.addMarketOrder(quantity, side);
+            ExecutionResults result = ob.addMarketOrder(quantity, side);
             auto end = std::chrono::high_resolution_clock::now();
-            if (traded) {
-                auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-                lastTradeMessage = "Last trade latency: " + std::to_string(elapsed) + " microseconds.";
+            if (result.traded) {
+                auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+                lastTradeMessage = std::string(yellow) + "Last trade latency: " + std::to_string(elapsed) + " nanoseconds.\n" + " Filled " + 
+                std::to_string(result.filled) + " out of " + std::to_string(result.requested) + " requested." + reset;
             } else {
                 lastTradeMessage = "No liquidity available for market order.";
             }

@@ -29,6 +29,12 @@ struct Order {
     OrderType type;
 };
 
+struct ExecutionResults {
+    bool traded;
+    int filled;
+    int requested;
+};
+
 
 class orderbook {
 public:
@@ -37,7 +43,7 @@ public:
         cout << "Price | Quantity \n";
         cout << "Asks: \n";
         for (const auto& s : sells_) {
-            cout << red <<  s.price << " | " << s.quantity << reset << '\n';
+            cout << red << s.price << " | " << s.quantity << reset << '\n';
         }
         cout << "--------------------\n";
         cout << "Bids: \n";
@@ -46,18 +52,22 @@ public:
         }
     }
 
-    bool addLimitOrder(double price, int quantity, Side side) { // Buy at a specified price or better, time is flexible
+    ExecutionResults addLimitOrder(double price, int quantity, Side side) { // Buy at a specified price or better, time is flexible
         Order o{price, quantity, side, OrderType::Limit};
-        bool traded = false;
+        ExecutionResults results;
+        results.traded = false;
+        results.requested = quantity;
+        results.filled = 0;
 
         if (side == Side::Buy) {
             while (!sells_.empty() && o.price >= sells_.back().price && o.quantity > 0) {
                 Order& bestAsk = sells_.back();
                 int tradeQuantity = std::min(o.quantity, bestAsk.quantity);
+                results.filled += tradeQuantity;
                 o.quantity -= tradeQuantity;
                 bestAsk.quantity -= tradeQuantity;
                 if (tradeQuantity > 0) {
-                    traded = true;
+                    results.traded = true;
                 }
                 if (bestAsk.quantity == 0) {
                     sells_.pop_back();
@@ -70,10 +80,11 @@ public:
             while (!buys_.empty() && o.price <= buys_.front().price && o.quantity > 0) {
                 Order& bestBid = buys_.front();
                 int tradeQuantity = std::min(o.quantity, bestBid.quantity);
+                results.filled += tradeQuantity;
                 o.quantity -= tradeQuantity;
                 bestBid.quantity -= tradeQuantity;
                 if (tradeQuantity > 0) {
-                    traded = true;
+                    results.traded = true;
                 }
                 if (bestBid.quantity == 0) {
                     buys_.pop_front();
@@ -84,19 +95,23 @@ public:
             }
         }
         rebalanceBooks();
-        return traded;
+        return results;
     }
 
-    bool addMarketOrder(int quantity, Side side) { // Buy now no matter what for the set amount
-        bool traded = false;
+    ExecutionResults addMarketOrder(int quantity, Side side) { // Buy now no matter what for the set amount
+        ExecutionResults results;
+        results.traded = false;
+        results.filled = 0;
+        results.requested = quantity;
         if (side == Side::Buy) {
             while (quantity > 0 && !sells_.empty()) {
                 Order& bestAsk = sells_.back();
-                int tradeQuantity = std::min(quantity, bestAsk.quantity);
+                int tradeQuantity = std::min(quantity, bestAsk.quantity); // the minimum of what is being asked, and what is available at the lowest ask
+                results.filled += tradeQuantity;
                 quantity -= tradeQuantity;
                 bestAsk.quantity -= tradeQuantity;
                 if (tradeQuantity > 0) {
-                    traded = true;
+                    results.traded = true;
                 }
                 if (bestAsk.quantity == 0) {
                     sells_.pop_back();
@@ -106,10 +121,11 @@ public:
             while (quantity > 0 && !buys_.empty()) {
                 Order& bestBid = buys_.front();
                 int tradeQuantity = std::min(quantity, bestBid.quantity);
+                results.filled += tradeQuantity;
                 quantity -= tradeQuantity;
                 bestBid.quantity -= tradeQuantity;
                 if (tradeQuantity > 0) {
-                    traded = true;
+                    results.traded = true;
                 }
                 if (bestBid.quantity == 0) {
                     buys_.pop_front();
@@ -117,7 +133,7 @@ public:
             }
         }
         rebalanceBooks();
-        return traded;
+        return results;
     }
 
 private:
