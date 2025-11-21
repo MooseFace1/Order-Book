@@ -3,40 +3,44 @@
 #include <iostream>
 #include <limits>
 #include <string>
+#include <random>
 
-#include "orderbook.cpp"
+#include "orderbook.h"
 
 using std::cin;
 using std::cout;
 using std::string;
+using namespace ansi;
 
-const char* yellow = "\033[33m";
+int latency{};
+string lastTradeMessage;
+
+void runDaStimmy (orderbook& o) {
+
+    std::mt19937 rng(std::random_device{}());
+    std::uniform_real_distribution<double> priceDist(95.0, 125.0);
+    std::uniform_int_distribution<int> qtyDist(1, 25);
+    std::uniform_int_distribution<int> sideDist(0, 1);
+    std::uniform_int_distribution<int> typeDist(0, 4);  // 0 - 3 will be limit, 4 will be order
+
+    auto start = std::chrono::high_resolution_clock::now();
+    for (int i = 0 ; i < 1000 ; ++i) {
+        Side side = sideDist(rng) ? Side::Buy : Side::Sell;
+        if (typeDist(rng) > 3) {
+            o.addMarketOrder(qtyDist(rng), side);
+        } else {
+            o.addLimitOrder(priceDist(rng), qtyDist(rng), side);
+        }
+    }
+    auto end = std::chrono::high_resolution_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    string time = std::to_string(elapsed);
+    lastTradeMessage += std::to_string(elapsed) + " nanoseconds";
+}
+
 
 int main() {
     orderbook ob;
-    ob.addLimitOrder(105.25, 10, Side::Buy);
-    ob.addLimitOrder(103.10, 15, Side::Buy);
-    ob.addLimitOrder(101.80, 20, Side::Buy);
-    ob.addLimitOrder(98.50, 12, Side::Buy);
-    ob.addLimitOrder(110.00, 8, Side::Buy);
-    ob.addLimitOrder(106.75, 5, Side::Buy);
-    ob.addLimitOrder(112.30, 18, Side::Buy);
-    ob.addLimitOrder(104.40, 22, Side::Buy);
-    ob.addLimitOrder(109.90, 9, Side::Buy);
-    ob.addLimitOrder(107.20, 14, Side::Buy);
-
-    ob.addLimitOrder(115.60, 7, Side::Sell);
-    ob.addLimitOrder(117.45, 12, Side::Sell);
-    ob.addLimitOrder(120.00, 10, Side::Sell);
-    ob.addLimitOrder(118.10, 6, Side::Sell);
-    ob.addLimitOrder(122.75, 11, Side::Sell);
-    ob.addLimitOrder(119.30, 16, Side::Sell);
-    ob.addLimitOrder(121.80, 9, Side::Sell);
-    ob.addLimitOrder(116.50, 13, Side::Sell);
-    ob.addLimitOrder(123.40, 4, Side::Sell);
-    ob.addLimitOrder(118.75, 15, Side::Sell); // for testing
-
-    string lastTradeMessage;
 
     while (true) {
         if (cin.eof()) {
@@ -53,6 +57,7 @@ int main() {
         cout << "0. Exit\n";
         cout << "1. Add Limit Order\n";
         cout << "2. Add Market Order\n";
+        cout << "3. Run the Stimmy\n";
         cout << "Choice: ";
 
         int choice;
@@ -60,6 +65,10 @@ int main() {
             cin.clear();
             cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
             continue;
+        }
+
+        if (choice == 3) {
+            runDaStimmy(ob);
         }
 
         if (choice == 0) {
@@ -70,6 +79,8 @@ int main() {
             int choice;
             cout << "1. Buy\n2. Sell \nChoice: "; 
             cin >> choice;
+            
+            if (choice != 1 && choice != 2) continue;
 
             double price;
             int quantity;
@@ -85,15 +96,17 @@ int main() {
             if (result.traded) {
                 auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
                 lastTradeMessage = std::string(yellow) + "Last trade latency: " + std::to_string(elapsed) + " nanoseconds.\n" + "Filled " + 
-                std::to_string(result.filled) + " out of " + std::to_string(result.requested) + " requested." + reset;
+                std::to_string(result.filled) + " out of " + std::to_string(result.requested) + " requested." + std::string(reset);
             } else {
-                lastTradeMessage = "No trades were made. Request added to book";
+                lastTradeMessage = "No trades were made. ";
             }
             
         } else if (choice == 2) { // market
             int choice;
             cout << "1. Buy\n2. Sell \nChoice: ";
             cin >> choice;
+
+            if (choice != 1 && choice != 2) continue;
             
             int quantity;
             cout << "\nEnter quantity: ";
@@ -106,12 +119,12 @@ int main() {
             if (result.traded) {
                 auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
                 lastTradeMessage = std::string(yellow) + "Last trade latency: " + std::to_string(elapsed) + " nanoseconds.\n" + " Filled " + 
-                std::to_string(result.filled) + " out of " + std::to_string(result.requested) + " requested." + reset;
+                std::to_string(result.filled) + " out of " + std::to_string(result.requested) + " requested." + std::string(reset);
             } else {
                 lastTradeMessage = "No liquidity available for market order.";
             }
         }
     }
-
+    cout << "\n Nanoseconds: " <<  time << '\n';
     return 0;
 }
