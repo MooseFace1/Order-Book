@@ -21,10 +21,10 @@ void runDaStimmy (orderbook& o) {
     std::uniform_real_distribution<double> priceDist(95.0, 125.0);
     std::uniform_int_distribution<int> qtyDist(1, 25);
     std::uniform_int_distribution<int> sideDist(0, 1);
-    std::uniform_int_distribution<int> typeDist(0, 4);  // 0 - 3 will be limit, 4 will be order
+    std::uniform_int_distribution<int> typeDist(0, 4);  // 0 - 3 will be limit, 4 will be market
 
     auto start = std::chrono::high_resolution_clock::now();
-    for (int i = 0 ; i < 10000 ; ++i) {
+    for (int i = 0 ; i < 1000 ; ++i) {
         Side side = sideDist(rng) ? Side::Buy : Side::Sell;
         if (typeDist(rng) > 3) {
             o.addMarketOrder(qtyDist(rng), side);

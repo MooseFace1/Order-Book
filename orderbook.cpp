@@ -115,3 +115,16 @@ ExecutionResults orderbook::addMarketOrder(int quantity, Side side) { // Buy now
     }
     return results;
 }
+
+BookSnapshot orderbook::snapshot(std::size_t depth) const {
+    BookSnapshot snapshot;
+    for (auto it = buys_.begin(); it != buys_.end() && snapshot.bids.size() < depth; ++it) {
+        int qty = 0; for (const auto& p : it->second) qty += p.quantity;
+        snapshot.bids.push_back({it->first, qty});
+    }
+    for (auto it = sells_.begin(); it != sells_.end() && snapshot.asks.size() < depth; ++it) {
+        int qty = 0; for (const auto& p : it->second) qty += p.quantity;
+        snapshot.asks.push_back({it->first, qty});
+    }
+    return snapshot;
+}

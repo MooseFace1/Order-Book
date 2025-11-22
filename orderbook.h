@@ -30,13 +30,28 @@ struct ExecutionResults {
     int requested;
 };
 
+struct BookLevel {
+    double price; 
+    int qty; 
+};
+
+struct BookSnapshot {
+    std::vector<BookLevel> bids;
+    std::vector<BookLevel> asks;
+};
+
+
+
 class orderbook {
 public:
     void printBook();
     ExecutionResults addLimitOrder(double price, int quantity, Side side);
     ExecutionResults addMarketOrder(int quantity, Side side);
-
+    BookSnapshot snapshot(std::size_t depth) const;
 private:
     std::map<double, deque<Order>, std::greater<double>> buys_; // descending: best bid first
     std::map<double, deque<Order>, std::less<double>> sells_;   // ascending: best ask first
 };
+
+
+
