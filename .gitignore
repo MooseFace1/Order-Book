@@ -1,1 +1,10 @@
 *.exe
+/main
+*/main
+
+*.exe
+*.out
+*.o
+*.obj
+
+.bin

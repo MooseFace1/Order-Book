@@ -24,7 +24,7 @@ void runDaStimmy (orderbook& o) {
     std::uniform_int_distribution<int> typeDist(0, 4);  // 0 - 3 will be limit, 4 will be order
 
     auto start = std::chrono::high_resolution_clock::now();
-    for (int i = 0 ; i < 1000 ; ++i) {
+    for (int i = 0 ; i < 10000 ; ++i) {
         Side side = sideDist(rng) ? Side::Buy : Side::Sell;
         if (typeDist(rng) > 3) {
             o.addMarketOrder(qtyDist(rng), side);
@@ -38,6 +38,17 @@ void runDaStimmy (orderbook& o) {
     lastTradeMessage += std::to_string(elapsed) + " nanoseconds";
 }
 
+void fillSome(orderbook& o) {
+    o.addLimitOrder(100.0, 10, Side::Sell);
+    o.addLimitOrder(101.0, 15, Side::Sell);
+    o.addLimitOrder(102.0, 5, Side::Sell);
+    o.addLimitOrder(103.0, 30, Side::Sell);
+    o.addLimitOrder(100.0, 20, Side::Buy);
+    o.addLimitOrder(99.0, 20, Side::Buy);
+    o.addLimitOrder(98.0, 25, Side::Buy);
+    o.addLimitOrder(97.0, 30, Side::Buy);
+}
+
 
 int main() {
     orderbook ob;
@@ -48,7 +59,7 @@ int main() {
             break;
         }
 
-        std::system("clear");
+        cout << "\033[H\033[2J\033[3J";
         ob.printBook();
         if (!lastTradeMessage.empty()) {
             cout << '\n' << lastTradeMessage << '\n';
@@ -58,6 +69,8 @@ int main() {
         cout << "1. Add Limit Order\n";
         cout << "2. Add Market Order\n";
         cout << "3. Run the Stimmy\n";
+        cout << "4. Fill some\n";
+        cout << "5. Empty the book\n";
         cout << "Choice: ";
 
         int choice;
@@ -69,6 +82,16 @@ int main() {
 
         if (choice == 3) {
             runDaStimmy(ob);
+        }
+
+        if (choice == 4) {
+            fillSome(ob);
+            lastTradeMessage = "";
+        }
+
+        if (choice == 5) {
+            ob = orderbook{};
+            lastTradeMessage = "";
         }
 
         if (choice == 0) {
@@ -125,6 +148,5 @@ int main() {
             }
         }
     }
-    cout << "\n Nanoseconds: " <<  time << '\n';
     return 0;
 }

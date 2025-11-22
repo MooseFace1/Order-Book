@@ -14,13 +14,21 @@ using namespace ansi;
 void orderbook::printBook() {
     cout << "Price | Quantity \n";
     cout << "Asks: \n";
-    for (const auto& s : sells_) {
-        cout << red << s.price << " | " << s.quantity << reset << '\n';
+
+    for (auto it = sells_.rbegin(); it != sells_.rend(); ++it) { // display asks high -> low
+        const auto& pair = *it;
+        int qty = 0;
+        for (const auto& p : pair.second) qty += p.quantity;
+        cout << red << pair.first << " | " << qty << reset << '\n';
     }
+
     cout << "--------------------\n";
     cout << "Bids: \n";
-    for (const auto& b : buys_) {
-        cout << green <<  b.price << " | " << b.quantity << reset << '\n';
+    
+    for (const auto& pair : buys_) {
+        int qty = 0;
+        for (const auto& p : pair.second) qty += p.quantity;
+        cout << green <<  pair.first << " | " << qty << reset << '\n';
     }
 }
 
@@ -32,41 +40,40 @@ ExecutionResults orderbook::addLimitOrder(double price, int quantity, Side side)
     results.filled = 0;
 
     if (side == Side::Buy) {
-        while (!sells_.empty() && o.price >= sells_.back().price && o.quantity > 0) {
-            Order& bestAsk = sells_.back();
-            int tradeQuantity = std::min(o.quantity, bestAsk.quantity);
-            results.filled += tradeQuantity;
-            o.quantity -= tradeQuantity;
-            bestAsk.quantity -= tradeQuantity;
-            if (tradeQuantity > 0) {
-                results.traded = true;
+        while (!sells_.empty() && o.quantity > 0) {
+            auto lowAsk = sells_.begin();
+            if (o.price < lowAsk->first) break;
+            auto &level = lowAsk->second;
+            while (o.quantity > 0 && !level.empty()) {
+                Order &bestAsk = level.front();
+                int tradeQty = std::min(o.quantity, bestAsk.quantity);
+                results.traded |= tradeQty > 0;
+                results.filled += tradeQty;
+                o.quantity -= tradeQty;
+                bestAsk.quantity -= tradeQty;
+                if (bestAsk.quantity == 0) level.pop_front();
             }
-            if (bestAsk.quantity == 0) {
-                sells_.pop_back();
-            }
+            if (level.empty()) sells_.erase(lowAsk);
         }
-        if (o.quantity > 0) {
-            buys_.push_back(o);
-        }
+        if (o.quantity > 0) buys_[o.price].push_back(o);
     } else {
-        while (!buys_.empty() && o.price <= buys_.front().price && o.quantity > 0) {
-            Order& bestBid = buys_.front();
-            int tradeQuantity = std::min(o.quantity, bestBid.quantity);
-            results.filled += tradeQuantity;
-            o.quantity -= tradeQuantity;
-            bestBid.quantity -= tradeQuantity;
-            if (tradeQuantity > 0) {
-                results.traded = true;
+        while (!buys_.empty() && o.quantity > 0) {
+            auto highBuy = buys_.begin();
+            if (o.price > highBuy->first) break;
+            auto &level = highBuy->second;
+            while (o.quantity > 0 && !level.empty()) {
+                Order &bestBid = level.front();
+                int tradeQty = std::min(o.quantity, bestBid.quantity);
+                results.traded |= tradeQty > 0;
+                results.filled += tradeQty;
+                o.quantity -= tradeQty;
+                bestBid.quantity -= tradeQty;
+                if (bestBid.quantity == 0) level.pop_front();
             }
-            if (bestBid.quantity == 0) {
-                buys_.pop_front();
-            }
+            if (level.empty()) buys_.erase(highBuy);
         }
-        if (o.quantity > 0) {
-            sells_.push_back(o);
-        }
+        if (o.quantity > 0) sells_[o.price].push_back(o);
     }
-    rebalanceBooks();
     return results;
 }
 
@@ -77,39 +84,34 @@ ExecutionResults orderbook::addMarketOrder(int quantity, Side side) { // Buy now
     results.requested = quantity;
     if (side == Side::Buy) {
         while (quantity > 0 && !sells_.empty()) {
-            Order& bestAsk = sells_.back();
-            int tradeQuantity = std::min(quantity, bestAsk.quantity); // the minimum of what is being asked, and what is available at the lowest ask
-            results.filled += tradeQuantity;
-            quantity -= tradeQuantity;
-            bestAsk.quantity -= tradeQuantity;
-            if (tradeQuantity > 0) {
-                results.traded = true;
+            auto lowAsk = sells_.begin();
+            auto &level = lowAsk->second;
+            while (!level.empty() && quantity > 0) {
+                Order &bestAsk = level.front();
+                int tradeQty = std::min(quantity, bestAsk.quantity);
+                results.traded |= tradeQty > 0;
+                results.filled += tradeQty;
+                quantity -= tradeQty;
+                bestAsk.quantity -= tradeQty;
+                if (bestAsk.quantity == 0) level.pop_front();
             }
-            if (bestAsk.quantity == 0) {
-                sells_.pop_back();
-            }
+            if (level.empty()) sells_.erase(lowAsk);
         }
     } else {
         while (quantity > 0 && !buys_.empty()) {
-            Order& bestBid = buys_.front();
-            int tradeQuantity = std::min(quantity, bestBid.quantity);
-            results.filled += tradeQuantity;
-            quantity -= tradeQuantity;
-            bestBid.quantity -= tradeQuantity;
-            if (tradeQuantity > 0) {
-                results.traded = true;
+            auto highBid = buys_.begin();
+            auto &level = highBid->second;
+            while (!level.empty() && quantity > 0) {
+                Order &bestBid = level.front();
+                int tradeQty = std::min(quantity, bestBid.quantity);
+                results.traded |= tradeQty > 0;
+                results.filled += tradeQty;
+                quantity -= tradeQty;
+                bestBid.quantity -= tradeQty;
+                if (bestBid.quantity == 0) level.pop_front();
             }
-            if (bestBid.quantity == 0) {
-                buys_.pop_front();
-            }
+            if (level.empty()) buys_.erase(highBid);
         }
     }
-    rebalanceBooks();
     return results;
 }
-
-void orderbook::rebalanceBooks() {
-    std::sort(buys_.begin(), buys_.end(), [](const Order& lhs, const Order& rhs) {return lhs.price > rhs.price;});
-    std::sort(sells_.begin(), sells_.end(), [](const Order& lhs, const Order& rhs) {return lhs.price > rhs.price;});
-}
-

@@ -1,6 +1,9 @@
 #pragma once
 
 #include <deque>
+#include <map>
+
+using std::deque;
 
 namespace ansi {
     inline constexpr const char* yellow = "\033[33m";
@@ -34,8 +37,6 @@ public:
     ExecutionResults addMarketOrder(int quantity, Side side);
 
 private:
-    void rebalanceBooks();
-
-    std::deque<Order> buys_;
-    std::deque<Order> sells_;
+    std::map<double, deque<Order>, std::greater<double>> buys_; // descending: best bid first
+    std::map<double, deque<Order>, std::less<double>> sells_;   // ascending: best ask first
 };
