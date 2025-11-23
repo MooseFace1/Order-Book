@@ -98,7 +98,7 @@ private:
         } else if (req_.method() == http::verb::get && (req_.target() == "/" || req_.target() == "/index.html")) {
             addCors(*res);
             res->set(http::field::content_type, "text/html");
-            std::ifstream file("index.html");
+            std::ifstream file("web/index.html"); // path relative to repo root / working dir
             if (file) {
                 std::ostringstream html;
                 html << file.rdbuf();

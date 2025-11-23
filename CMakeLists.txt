@@ -23,15 +23,17 @@ set(COMMON_WARNINGS -Wall -Wextra -Wpedantic)
 
 # CLI executable: interactive terminal app.
 add_executable(orderbook_cli
-  CLI_interface.cpp
-  orderbook.cpp
+  src/CLI_interface.cpp
+  src/orderbook.cpp
 )
 target_compile_options(orderbook_cli PRIVATE ${COMMON_WARNINGS})
+target_include_directories(orderbook_cli PRIVATE include)
 
 # API server executable: serves HTTP + UI.
 add_executable(api_server
-  api_server.cpp
-  orderbook.cpp
+  src/api_server.cpp
+  src/orderbook.cpp
 )
 target_compile_options(api_server PRIVATE ${COMMON_WARNINGS})
 target_link_libraries(api_server PRIVATE Boost::system Threads::Threads)
+target_include_directories(api_server PRIVATE include)

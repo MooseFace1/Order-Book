@@ -10,7 +10,7 @@ RUN apt-get update && \
 WORKDIR /app
 COPY . .
 
-RUN g++ -std=c++17 -O2 api_server.cpp orderbook.cpp -lboost_system -lpthread -o api_server
+RUN g++ -std=c++17 -O2 src/api_server.cpp src/orderbook.cpp -I include -lboost_system -lpthread -o api_server
 
 # Render provides PORT; fallback to 9000 for local testing
 ENV PORT=9000

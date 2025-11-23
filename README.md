@@ -55,4 +55,5 @@ cmake --build build
 - This is a learning tool. No auth/rate limits; don’t expose it publicly without safeguards.
 - What I learned: swapping containers matters a lot; compiler flags (-O2) matter; simple profiling with `std::chrono` is enough to see meaningful gains.
 - Keep builds out-of-tree (`build/`) to avoid stray binaries in the repo.
+- Layout: `src/` for code, `include/` for headers, `web/` for the UI, `benchmarks/` for timing stamps.
 - If for some reason you can't use CMake or run it manually, I have the project running on the world wide web through render: [https://elis-order-book-simualtion.onrender.com](url)
