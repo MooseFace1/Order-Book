@@ -1,4 +1,4 @@
-5326678 nanoseconds with a deque for 1000 orders 5326.678 nanoseconds per order.
+With a deque for 1000 orders: 5326678 nanoseconds 
 
 With a map for 1000 orders: 763993 nanoseconds 
 With -O2: 101296 nanoseconds

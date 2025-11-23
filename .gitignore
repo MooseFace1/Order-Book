@@ -1,10 +1,22 @@
 *.exe
-/main
-*/main
-
-*.exe
 *.out
 *.o
 *.obj
+
+# Build folders and CMake artifacts
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+*.cmake
+Makefile
+install_manifest.txt
+
+# Local binaries
+/main
+*/main
+/orderbook_app
+/orderbook_cli
+/api_server
 
 .bin
