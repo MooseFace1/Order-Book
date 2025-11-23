@@ -4,82 +4,184 @@
   <meta charset="UTF-8" />
   <title>Order Book</title>
   <style>
-    body { font-family: sans-serif; margin: 0; padding: 24px; background:#0c1117; color:#e5e7eb; display:flex; gap:24px; }
-    h1 { margin: 0 0 8px 0; }
-    .left { width: 280px; background:#0b1220; padding:16px; border:1px solid #1f2937; border-radius:8px; }
-    .right { flex:1; background:#0b1220; padding:16px; border:1px solid #1f2937; border-radius:8px; }
-    table { width:100%; border-collapse:collapse; }
-    th, td { padding:6px 8px; text-align:right; }
-    th { color:#9ca3af; }
-    .ask { color:#f87171; }
-    .bid { color:#34d399; }
-    .divider { border-top:1px solid #1f2937; margin:12px 0; }
-    form { display:flex; flex-direction:column; gap:10px; margin-top:12px; }
-    label { font-size:13px; color:#9ca3af; }
-    input, select, button { padding:8px 10px; background:#111827; color:#e5e7eb; border:1px solid #374151; border-radius:4px; }
-    button { cursor:pointer; background:#2563eb; border-color:#1d4ed8; }
-    button:hover { background:#1d4ed8; }
-    #status { margin-top:10px; color:#9ca3af; min-height:18px; }
-    .subtle { color:#9ca3af; font-size:13px; }
+    :root {
+      --bg: #05060a;
+      --panel: #0c111b;
+      --border: #1f2635;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --bid: #2dd4bf;
+      --ask: #f472b6;
+      --accent: #7c3aed;
+      --accent-2: #14b8a6;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 32px;
+      font-family: "IBM Plex Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 20px;
+      min-height: 100vh;
+    }
+    h1, h2, h3 { margin: 0; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.35);
+    }
+    header {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    header .title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .pill {
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(124, 58, 237, 0.2);
+      border: 1px solid rgba(124, 58, 237, 0.4);
+      color: #e0d7ff;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+    }
+    form { display: grid; gap: 10px; }
+    label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); }
+    input, select, button {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #0e1525;
+      color: var(--text);
+      font-size: 15px;
+    }
+    button {
+      cursor: pointer;
+      background: var(--accent);
+      border: none;
+      font-weight: 600;
+      transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+    }
+    button:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(124, 58, 237, 0.25); background: #6930d9; }
+    button:active { transform: translateY(0); box-shadow: none; }
+    .stack { display: flex; gap: 8px; }
+    .stack button { flex: 1; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { padding: 8px 6px; text-align: right; font-variant-numeric: tabular-nums; }
+    th { color: var(--muted); font-size: 12px; letter-spacing: 0.3px; }
+    tr:nth-child(odd) { background: #0f1523; }
+    tr:nth-child(even) { background: #0c111b; }
+    .ask { color: var(--ask); }
+    .bid { color: var(--bid); }
+    .section-title { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+    .mini { color: var(--muted); font-size: 12px; }
+    #status { min-height: 18px; color: var(--muted); margin-top: 6px; }
+    #latency { color: var(--muted); font-size: 13px; }
+    #depth-wrap { height: 360px; margin-top: 8px; position: relative; overflow-y: auto; }
+    #depth {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0));
+    }
+    .legend { display: flex; gap: 10px; align-items: center; margin-top: 6px; color: var(--muted); font-size: 12px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .statline { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+    .chip { padding: 6px 10px; border-radius: 8px; background: #0e1525; border: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+    @media (max-width: 940px) {
+      body { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
-  <div class="left">
-    <h1>Order Entry</h1>
+  <header>
+    <div class="title">
+      <div class="pill">L3 Visualizer</div>
+      <div>
+        <h1>Order Book</h1>
+        <div class="mini">Limit + market flow with live depth</div>
+      </div>
+    </div>
+    <div class="statline" id="topStats">
+      <div class="chip">Best Bid: <span id="bestBid">-</span></div>
+      <div class="chip">Best Ask: <span id="bestAsk">-</span></div>
+      <div class="chip">Spread: <span id="spread">-</span></div>
+    </div>
+  </header>
+
+  <div class="panel">
+    <h3>Order Entry</h3>
     <form id="orderForm">
-      <label>Side</label>
-      <select name="side">
-        <option value="buy">Buy</option><option value="sell">Sell</option>
-      </select>
-      <label>Type</label>
-      <select name="type" id="typeSelect">
-        <option value="limit">Limit</option><option value="market">Market</option>
-      </select>
-      <label>Price (limit only)</label>
-      <input name="price" id="priceInput" type="number" step="0.01" placeholder="e.g. 101.25" required />
-      <label>Quantity</label>
-      <input name="qty" type="number" step="1" placeholder="Qty" required />
+      <div>
+        <label>Side</label>
+        <select name="side">
+          <option value="buy">Buy</option><option value="sell">Sell</option>
+        </select>
+      </div>
+      <div>
+        <label>Type</label>
+        <select name="type" id="typeSelect">
+          <option value="limit">Limit</option><option value="market">Market</option>
+        </select>
+      </div>
+      <div>
+        <label>Price (limit only)</label>
+        <input name="price" id="priceInput" type="number" step="0.01" placeholder="101.25" required />
+      </div>
+      <div>
+        <label>Quantity</label>
+        <input name="qty" type="number" step="1" placeholder="10" required />
+      </div>
       <button type="submit">Send Order</button>
     </form>
-    <button id="stimmyBtn" style="margin-top:10px;">Run Da Stimmy</button>
-    <button id="clearBtn" style="margin-top:6px;">Clear Book</button>
+    <div class="stack" style="margin-top:10px;">
+      <button id="stimmyBtn">Run Da Stimmy</button>
+      <button id="clearBtn" style="background:#111827;border:1px solid var(--border);">Clear Book</button>
+    </div>
     <div id="status"></div>
-    <div id="latency" class="subtle"></div>
+    <div id="latency"></div>
   </div>
 
-  <div class="right">
-    <h1>Order Book</h1>
-    <h3>Asks</h3>
+  <div class="panel">
+    <div class="section-title">
+      <h3>Depth Chart</h3>
+      <span class="mini">Horizontal bars: qty at each price (bids left, asks right)</span>
+    </div>
+    <div id="depth-wrap">
+      <canvas id="depth"></canvas>
+    </div>
+    <div class="legend">
+      <span class="dot" style="background:var(--bid);"></span> Bids
+      <span class="dot" style="background:var(--ask);"></span> Asks
+    </div>
+    <div class="section-title" style="margin-top:14px;">
+      <h3>Order Book</h3>
+      <span class="mini">Top of book ladder</span>
+    </div>
+    <h4 style="margin-top:10px;margin-bottom:4px;color:var(--ask);">Asks</h4>
     <table id="asks"><thead><tr><th>Price</th><th>Qty</th></tr></thead><tbody></tbody></table>
-    <div class="divider"></div>
-    <h3>Bids </h3>
+    <h4 style="margin-top:14px;margin-bottom:4px;color:var(--bid);">Bids</h4>
     <table id="bids"><thead><tr><th>Price</th><th>Qty</th></tr></thead><tbody></tbody></table>
   </div>
 
   <script>
-    async function loadBook() {
-      try {
-        const res = await fetch('/book');
-        if (!res.ok) throw new Error('bad response');
-        const data = await res.json();
-        renderTable('asks', data.asks, 'ask', true); // reverse asks to show high -> low
-        renderTable('bids', data.bids, 'bid');
-      } catch (e) {
-        document.getElementById('status').textContent = 'Book load failed';
-      }
-    }
-    function renderTable(id, rows, cls, reverse=false) {
-      const tbody = document.querySelector(`#${id} tbody`);
-      tbody.innerHTML = '';
-      const list = reverse ? [...rows].reverse() : rows;
-      list.forEach(r => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td class="${cls}">${Number(r.price).toFixed(2)}</td><td>${r.qty}</td>`;
-        tbody.appendChild(tr);
-      });
-    }
     const typeSelect = document.getElementById('typeSelect');
     const priceInput = document.getElementById('priceInput');
+    const depthCanvas = document.getElementById('depth');
+    let lastBook = { bids: [], asks: [] };
+
     typeSelect.addEventListener('change', () => {
       if (typeSelect.value === 'market') {
         priceInput.value = '';
@@ -90,6 +192,129 @@
         priceInput.disabled = false;
       }
     });
+
+    function renderTable(id, rows, cls, reverse=false) {
+      const tbody = document.querySelector(`#${id} tbody`);
+      tbody.innerHTML = '';
+      const list = reverse ? [...rows].reverse() : rows;
+      list.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td class="${cls}">${Number(r.price).toFixed(2)}</td><td>${r.qty}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function updateTopStats(data) {
+      const bestBid = data.bids?.[0];
+      const bestAsk = data.asks?.[0];
+      document.getElementById('bestBid').textContent = bestBid ? Number(bestBid.price).toFixed(2) : '-';
+      document.getElementById('bestAsk').textContent = bestAsk ? Number(bestAsk.price).toFixed(2) : '-';
+      if (bestBid && bestAsk) {
+        const spread = bestAsk.price - bestBid.price;
+        document.getElementById('spread').textContent = spread.toFixed(4);
+      } else {
+        document.getElementById('spread').textContent = '-';
+      }
+    }
+
+    function drawDepth(bids, asks) {
+      if (!depthCanvas) return;
+      const ctx = depthCanvas.getContext('2d');
+      depthCanvas.width = depthCanvas.clientWidth;
+      ctx.clearRect(0, 0, depthCanvas.width, depthCanvas.height);
+
+      if ((!bids || bids.length === 0) && (!asks || asks.length === 0)) {
+        ctx.fillStyle = '#505564';
+        ctx.font = '13px sans-serif';
+        ctx.fillText('No liquidity yet — add some orders.', 14, 24);
+        return;
+      }
+
+      // Aggregate by price for fast lookup
+      const priceMap = new Map();
+      (bids || []).forEach(l => {
+        const key = Number(l.price);
+        const entry = priceMap.get(key) || { bidQty: 0, askQty: 0 };
+        entry.bidQty += l.qty;
+        priceMap.set(key, entry);
+      });
+      (asks || []).forEach(l => {
+        const key = Number(l.price);
+        const entry = priceMap.get(key) || { bidQty: 0, askQty: 0 };
+        entry.askQty += l.qty;
+        priceMap.set(key, entry);
+      });
+
+      const prices = Array.from(priceMap.keys()).sort((a,b) => b - a); // high to low
+      const maxQty = Math.max(...prices.map(p => Math.max(priceMap.get(p).bidQty, priceMap.get(p).askQty)), 1);
+
+      const padX = 16;
+      const labelSpace = 70;
+      const padY = 20;
+      const startX = padX + labelSpace;
+      const barMax = Math.max(40, depthCanvas.width - startX - padX);
+      const rowH = 22; // fixed row height to allow vertical scrolling
+
+      // Set canvas height based on rows; wrapper will scroll if too tall
+      const canvasHeight = Math.max(180, padY * 2 + prices.length * rowH);
+      depthCanvas.height = canvasHeight;
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.beginPath();
+      ctx.moveTo(startX, padY / 2);
+      ctx.lineTo(startX, depthCanvas.height - padY / 2);
+      ctx.stroke();
+
+      ctx.font = '12px \"IBM Plex Sans\", sans-serif';
+      ctx.textBaseline = 'middle';
+
+      prices.forEach((p, idx) => {
+        const y = padY + idx * rowH + rowH / 2;
+        const level = priceMap.get(p);
+        const bidLen = barMax * (level.bidQty / maxQty);
+        const askLen = barMax * (level.askQty / maxQty);
+
+        ctx.fillStyle = '#dfe3f0';
+        ctx.textAlign = 'left';
+        ctx.fillText(p.toFixed(2), padX, y);
+
+        const labelX = startX - 6;
+        if (bidLen > 0) {
+          ctx.textAlign = 'right';
+          ctx.fillStyle = '#b9fff1';
+          ctx.fillText(level.bidQty, labelX, y + rowH * 0.18);
+          ctx.fillStyle = 'rgba(45, 212, 191, 0.3)';
+          ctx.fillRect(startX, y - (rowH * 0.35), bidLen, rowH * 0.7);
+          ctx.fillStyle = 'rgba(45, 212, 191, 0.9)';
+          ctx.fillRect(startX, y - (rowH * 0.25), bidLen, rowH * 0.5);
+        }
+
+        if (askLen > 0) {
+          ctx.textAlign = 'right';
+          ctx.fillStyle = '#ffd9ef';
+          ctx.fillText(level.askQty, labelX, y + rowH * 0.18);
+          ctx.fillStyle = 'rgba(244, 114, 182, 0.3)';
+          ctx.fillRect(startX, y - (rowH * 0.35), askLen, rowH * 0.7);
+          ctx.fillStyle = 'rgba(244, 114, 182, 0.9)';
+          ctx.fillRect(startX, y - (rowH * 0.25), askLen, rowH * 0.5);
+        }
+      });
+    }
+
+    async function loadBook() {
+      try {
+        const res = await fetch('/book');
+        if (!res.ok) throw new Error('bad response');
+        const data = await res.json();
+        lastBook = { bids: data.bids || [], asks: data.asks || [] };
+        renderTable('asks', data.asks, 'ask', true);
+        renderTable('bids', data.bids, 'bid');
+        updateTopStats(data);
+        drawDepth(lastBook.bids, lastBook.asks);
+      } catch (e) {
+        document.getElementById('status').textContent = 'Book load failed';
+      }
+    }
 
     document.getElementById('orderForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -112,7 +337,7 @@
           if (payload.type === 'market') {
             document.getElementById('status').textContent = `Filled ${body.filled}/${body.requested}`;
           } else if (body.trades > 0) {
-            document.getElementById('status').textContent = `Executed ${body.trades} trade(s), avg price ${Number(body.avg_price).toFixed(4)}, filled ${body.filled}/${body.requested}`;
+            document.getElementById('status').textContent = `Executed ${body.trades} trade(s), avg ${Number(body.avg_price).toFixed(4)}, filled ${body.filled}/${body.requested}`;
           } else {
             document.getElementById('status').textContent = `No trades; order resting (${body.filled}/${body.requested})`;
           }
@@ -128,10 +353,11 @@
         document.getElementById('latency').textContent = '';
       }
     });
+
     document.getElementById('stimmyBtn').addEventListener('click', async () => {
       try {
         const res = await fetch('/stimmy', { method: 'POST' });
-        document.getElementById('status').textContent = res.ok ? 'Stimmy ran (added 40 orders)' : 'Stimmy failed';
+        document.getElementById('status').textContent = res.ok ? 'Stimmy ran (added 40 random orders)' : 'Stimmy failed';
         document.getElementById('latency').textContent = '';
         loadBook();
       } catch {
@@ -139,6 +365,7 @@
         document.getElementById('latency').textContent = '';
       }
     });
+
     document.getElementById('clearBtn').addEventListener('click', async () => {
       try {
         const res = await fetch('/clear', { method: 'POST' });
@@ -150,8 +377,10 @@
         document.getElementById('latency').textContent = '';
       }
     });
+
     loadBook();
     setInterval(loadBook, 1000);
+    window.addEventListener('resize', () => drawDepth(lastBook.bids, lastBook.asks)); // recalibrate canvas size
   </script>
 </body>
 </html>
