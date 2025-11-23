@@ -38,6 +38,8 @@ ExecutionResults orderbook::addLimitOrder(double price, int quantity, Side side)
     results.traded = false;
     results.requested = quantity;
     results.filled = 0;
+    results.trades = 0;
+    results.notional = 0.0;
 
     if (side == Side::Buy) {
         while (!sells_.empty() && o.quantity > 0) {
@@ -49,6 +51,8 @@ ExecutionResults orderbook::addLimitOrder(double price, int quantity, Side side)
                 int tradeQty = std::min(o.quantity, bestAsk.quantity);
                 results.traded |= tradeQty > 0;
                 results.filled += tradeQty;
+                results.trades += tradeQty > 0 ? 1 : 0;
+                results.notional += static_cast<double>(tradeQty) * bestAsk.price;
                 o.quantity -= tradeQty;
                 bestAsk.quantity -= tradeQty;
                 if (bestAsk.quantity == 0) level.pop_front();
@@ -66,6 +70,8 @@ ExecutionResults orderbook::addLimitOrder(double price, int quantity, Side side)
                 int tradeQty = std::min(o.quantity, bestBid.quantity);
                 results.traded |= tradeQty > 0;
                 results.filled += tradeQty;
+                results.trades += tradeQty > 0 ? 1 : 0;
+                results.notional += static_cast<double>(tradeQty) * bestBid.price;
                 o.quantity -= tradeQty;
                 bestBid.quantity -= tradeQty;
                 if (bestBid.quantity == 0) level.pop_front();
@@ -82,6 +88,8 @@ ExecutionResults orderbook::addMarketOrder(int quantity, Side side) { // Buy now
     results.traded = false;
     results.filled = 0;
     results.requested = quantity;
+    results.trades = 0;
+    results.notional = 0.0;
     if (side == Side::Buy) {
         while (quantity > 0 && !sells_.empty()) {
             auto lowAsk = sells_.begin();
@@ -91,6 +99,8 @@ ExecutionResults orderbook::addMarketOrder(int quantity, Side side) { // Buy now
                 int tradeQty = std::min(quantity, bestAsk.quantity);
                 results.traded |= tradeQty > 0;
                 results.filled += tradeQty;
+                results.trades += tradeQty > 0 ? 1 : 0;
+                results.notional += static_cast<double>(tradeQty) * bestAsk.price;
                 quantity -= tradeQty;
                 bestAsk.quantity -= tradeQty;
                 if (bestAsk.quantity == 0) level.pop_front();
@@ -106,6 +116,8 @@ ExecutionResults orderbook::addMarketOrder(int quantity, Side side) { // Buy now
                 int tradeQty = std::min(quantity, bestBid.quantity);
                 results.traded |= tradeQty > 0;
                 results.filled += tradeQty;
+                results.trades += tradeQty > 0 ? 1 : 0;
+                results.notional += static_cast<double>(tradeQty) * bestBid.price;
                 quantity -= tradeQty;
                 bestBid.quantity -= tradeQty;
                 if (bestBid.quantity == 0) level.pop_front();

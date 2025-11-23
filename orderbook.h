@@ -28,6 +28,8 @@ struct ExecutionResults {
     bool traded;
     int filled;
     int requested;
+    int trades{0};          // number of executions
+    double notional{0.0};   // total traded value for avg price calc
 };
 
 struct BookLevel {
@@ -52,6 +54,5 @@ private:
     std::map<double, deque<Order>, std::greater<double>> buys_; // descending: best bid first
     std::map<double, deque<Order>, std::less<double>> sells_;   // ascending: best ask first
 };
-
 
 

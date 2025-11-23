@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Order Book</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; padding: 24px; background:#0c1117; color:#e5e7eb; display:flex; gap:24px; }
+    h1 { margin: 0 0 8px 0; }
+    .left { width: 280px; background:#0b1220; padding:16px; border:1px solid #1f2937; border-radius:8px; }
+    .right { flex:1; background:#0b1220; padding:16px; border:1px solid #1f2937; border-radius:8px; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:6px 8px; text-align:right; }
+    th { color:#9ca3af; }
+    .ask { color:#f87171; }
+    .bid { color:#34d399; }
+    .divider { border-top:1px solid #1f2937; margin:12px 0; }
+    form { display:flex; flex-direction:column; gap:10px; margin-top:12px; }
+    label { font-size:13px; color:#9ca3af; }
+    input, select, button { padding:8px 10px; background:#111827; color:#e5e7eb; border:1px solid #374151; border-radius:4px; }
+    button { cursor:pointer; background:#2563eb; border-color:#1d4ed8; }
+    button:hover { background:#1d4ed8; }
+    #status { margin-top:10px; color:#9ca3af; min-height:18px; }
+    .subtle { color:#9ca3af; font-size:13px; }
+  </style>
+</head>
+<body>
+  <div class="left">
+    <h1>Order Entry</h1>
+    <form id="orderForm">
+      <label>Side</label>
+      <select name="side">
+        <option value="buy">Buy</option><option value="sell">Sell</option>
+      </select>
+      <label>Type</label>
+      <select name="type" id="typeSelect">
+        <option value="limit">Limit</option><option value="market">Market</option>
+      </select>
+      <label>Price (limit only)</label>
+      <input name="price" id="priceInput" type="number" step="0.01" placeholder="e.g. 101.25" required />
+      <label>Quantity</label>
+      <input name="qty" type="number" step="1" placeholder="Qty" required />
+      <button type="submit">Send Order</button>
+    </form>
+    <button id="stimmyBtn" style="margin-top:10px;">Run Da Stimmy</button>
+    <button id="clearBtn" style="margin-top:6px;">Clear Book</button>
+    <div id="status"></div>
+    <div id="latency" class="subtle"></div>
+  </div>
+
+  <div class="right">
+    <h1>Order Book</h1>
+    <h3>Asks</h3>
+    <table id="asks"><thead><tr><th>Price</th><th>Qty</th></tr></thead><tbody></tbody></table>
+    <div class="divider"></div>
+    <h3>Bids </h3>
+    <table id="bids"><thead><tr><th>Price</th><th>Qty</th></tr></thead><tbody></tbody></table>
+  </div>
+
+  <script>
+    async function loadBook() {
+      try {
+        const res = await fetch('/book');
+        if (!res.ok) throw new Error('bad response');
+        const data = await res.json();
+        renderTable('asks', data.asks, 'ask', true); // reverse asks to show high -> low
+        renderTable('bids', data.bids, 'bid');
+      } catch (e) {
+        document.getElementById('status').textContent = 'Book load failed';
+      }
+    }
+    function renderTable(id, rows, cls, reverse=false) {
+      const tbody = document.querySelector(`#${id} tbody`);
+      tbody.innerHTML = '';
+      const list = reverse ? [...rows].reverse() : rows;
+      list.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td class="${cls}">${Number(r.price).toFixed(2)}</td><td>${r.qty}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+    const typeSelect = document.getElementById('typeSelect');
+    const priceInput = document.getElementById('priceInput');
+    typeSelect.addEventListener('change', () => {
+      if (typeSelect.value === 'market') {
+        priceInput.value = '';
+        priceInput.required = false;
+        priceInput.disabled = true;
+      } else {
+        priceInput.required = true;
+        priceInput.disabled = false;
+      }
+    });
+
+    document.getElementById('orderForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const payload = {
+        side: fd.get('side'),
+        type: fd.get('type'),
+        price: fd.get('price') ? parseFloat(fd.get('price')) : undefined,
+        qty: parseInt(fd.get('qty'), 10)
+      };
+      if (payload.type === 'market') delete payload.price;
+      try {
+        const res = await fetch('/orders', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const body = await res.json();
+        if (res.ok) {
+          if (payload.type === 'market') {
+            document.getElementById('status').textContent = `Filled ${body.filled}/${body.requested}`;
+          } else if (body.trades > 0) {
+            document.getElementById('status').textContent = `Executed ${body.trades} trade(s), avg price ${Number(body.avg_price).toFixed(4)}, filled ${body.filled}/${body.requested}`;
+          } else {
+            document.getElementById('status').textContent = `No trades; order resting (${body.filled}/${body.requested})`;
+          }
+        } else {
+          document.getElementById('status').textContent = `Order failed: ${body.error || ''}`;
+        }
+        if (body.latency_ns !== undefined) {
+          document.getElementById('latency').textContent = `Latency: ${body.latency_ns} ns`;
+        }
+        loadBook();
+      } catch {
+        document.getElementById('status').textContent = 'Order failed';
+        document.getElementById('latency').textContent = '';
+      }
+    });
+    document.getElementById('stimmyBtn').addEventListener('click', async () => {
+      try {
+        const res = await fetch('/stimmy', { method: 'POST' });
+        document.getElementById('status').textContent = res.ok ? 'Stimmy ran (added 40 orders)' : 'Stimmy failed';
+        document.getElementById('latency').textContent = '';
+        loadBook();
+      } catch {
+        document.getElementById('status').textContent = 'Stimmy failed';
+        document.getElementById('latency').textContent = '';
+      }
+    });
+    document.getElementById('clearBtn').addEventListener('click', async () => {
+      try {
+        const res = await fetch('/clear', { method: 'POST' });
+        document.getElementById('status').textContent = res.ok ? 'Book cleared' : 'Clear failed';
+        document.getElementById('latency').textContent = '';
+        loadBook();
+      } catch {
+        document.getElementById('status').textContent = 'Clear failed';
+        document.getElementById('latency').textContent = '';
+      }
+    });
+    loadBook();
+    setInterval(loadBook, 1000);
+  </script>
+</body>
+</html>
